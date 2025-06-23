@@ -1,0 +1,776 @@
+{% extends "base.html" %}
+
+{% block title %}Delivery Dashboard{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-100">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-lg">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex justify-between items-center">
+                <div class="text-2xl font-bold text-gray-800">Food Buddy</div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-gray-600">Welcome, {{ current_user.name }}</span>
+                    <a href="{{ url_for('logout') }}" class="text-red-600 hover:text-red-800">Logout</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container mx-auto px-6 py-8">
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-700">Active Deliveries</h3>
+                <p class="text-3xl font-bold text-blue-600">{{ active_deliveries|length }}</p>
+            </div>
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-700">Available Deliveries</h3>
+                <p class="text-3xl font-bold text-green-600">{{ available_deliveries|length }}</p>
+            </div>
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-700">Completed Deliveries</h3>
+                <p class="text-3xl font-bold text-purple-600">{{ completed_deliveries }}</p>
+            </div>
+        </div>
+
+        <!-- Map and Route Optimization -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-gray-800">Delivery Routes</h2>
+                <button onclick="optimizeRoutes()" 
+                    class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors">
+                    <span class="flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                        </svg>
+                        Optimize Routes
+                    </span>
+                </button>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Map View -->
+                <div class="lg:col-span-2">
+                    <div id="map" class="w-full h-[500px] rounded-lg border-2 border-gray-200" style="min-height: 500px;"></div>
+                </div>
+                <!-- Route Details -->
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-800">Route Details</h3>
+                    <div id="routeDetails" class="space-y-4">
+                        <!-- Route details will be populated by JavaScript -->
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-gray-200">
+                        <p class="text-sm text-gray-600">
+                            Total Distance: <span id="totalDistance">0</span> km
+                        </p>
+                        <p class="text-sm text-gray-600">
+                            Estimated Time: <span id="estimatedTime">0</span> min
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Deliveries -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-bold mb-4 text-gray-800">Your Active Deliveries</h2>
+            {% if active_deliveries %}
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {% for delivery in active_deliveries %}
+                    <div class="border rounded-lg p-4">
+                        <h3 class="font-bold text-gray-800">{{ delivery.name }}</h3>
+                        <p class="text-gray-600">Quantity: {{ delivery.quantity }}</p>
+                        <p class="text-gray-600">From: {{ delivery.donor_location }}</p>
+                        <p class="text-gray-600">To: {{ delivery.recipient_location }}</p>
+                        <p class="text-gray-600">Status: {{ delivery.status }}</p>
+                        {% if delivery.status == 'assigned' %}
+                        <button 
+                            onclick="startDelivery('{{ delivery.id }}')"
+                            class="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors w-full">
+                            Start Delivery
+                        </button>
+                        {% elif delivery.status == 'in_delivery' %}
+                        <button 
+                            onclick="completeDelivery('{{ delivery.id }}')"
+                            class="mt-4 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors w-full">
+                            Complete Delivery
+                        </button>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-gray-600">No active deliveries at the moment.</p>
+            {% endif %}
+        </div>
+
+        <!-- Available Deliveries -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-bold mb-4 text-gray-800">Available Deliveries</h2>
+            {% if available_deliveries %}
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {% for delivery in available_deliveries %}
+                    <div class="border rounded-lg p-4">
+                        <h3 class="font-bold text-gray-800">{{ delivery.name }}</h3>
+                        <p class="text-gray-600">Quantity: {{ delivery.quantity }}</p>
+                        <p class="text-gray-600">From: {{ delivery.donor_location }}</p>
+                        <p class="text-gray-600">To: {{ delivery.recipient_location }}</p>
+                        <button 
+                            onclick="acceptDelivery('{{ delivery.id }}')" 
+                            class="mt-4 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors w-full">
+                            Accept Delivery (+5 points)
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-gray-600">No available deliveries at the moment.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Map and Route Optimization Scripts -->
+<script>
+function loadGoogleMapsScript() {
+    console.log('Loading Google Maps script...');
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=places,geometry&callback=initMap`;
+    script.async = true;
+    script.defer = true;
+    script.onerror = function() {
+        console.error('Failed to load Google Maps API');
+        showError('Failed to load Google Maps API. Please check your internet connection and try again.');
+    };
+    document.head.appendChild(script);
+}
+
+// Add debug logging for API key
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, API Key:', '{{ google_maps_api_key }}');
+    loadGoogleMapsScript();
+});
+
+// Initialize map variables
+let map = null;
+let markers = [];
+let directionsService = null;
+let directionsRenderer = null;
+let routeColors = [
+    '#2196F3', // Blue
+    '#4CAF50', // Green
+    '#F44336', // Red
+    '#9C27B0', // Purple
+    '#FF9800', // Orange
+    '#795548', // Brown
+    '#607D8B'  // Blue Grey
+];
+
+function initMap() {
+    console.log('Initializing map...');
+    
+    try {
+        // Show loading state
+        const mapContainer = document.getElementById('map');
+        if (!mapContainer) {
+            console.error('Map container not found');
+            showError('Map container not found on the page');
+            return;
+        }
+
+        // Add loading indicator
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'absolute inset-0 bg-gray-100 flex items-center justify-center';
+        loadingDiv.innerHTML = '<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>';
+        mapContainer.appendChild(loadingDiv);
+
+        // Create the map instance
+        map = new google.maps.Map(mapContainer, {
+            zoom: 12,
+            center: { lat: 20.5937, lng: 78.9629 }, // Default center (India)
+            mapTypeControl: true,
+            fullscreenControl: true,
+            streetViewControl: false,
+            styles: [
+                {
+                    featureType: "poi",
+                    elementType: "labels",
+                    stylers: [{ visibility: "off" }]
+                }
+            ]
+        });
+
+        // Initialize directions services
+        directionsService = new google.maps.DirectionsService();
+        directionsRenderer = new google.maps.DirectionsRenderer({
+            suppressMarkers: true,
+            preserveViewport: true,
+            map: map
+        });
+
+        // Remove loading indicator when map is ready
+        google.maps.event.addListenerOnce(map, 'idle', function() {
+            loadingDiv.remove();
+        });
+
+        // Load initial delivery locations
+        loadDeliveryLocations();
+        console.log('Map initialized successfully');
+    } catch (error) {
+        console.error('Error initializing map:', error);
+        showError('Failed to initialize map: ' + error.message);
+    }
+}
+
+// Load delivery locations
+async function loadDeliveryLocations() {
+    if (!checkGoogleMapsLoaded()) return;
+    
+    try {
+        clearMap();
+        
+        const bounds = new google.maps.LatLngBounds();
+        const activeDeliveries = JSON.parse('{{ active_deliveries|tojson|safe }}');
+        
+        console.log('Loading deliveries:', activeDeliveries);
+        
+        for (const delivery of activeDeliveries) {
+            // Add donor location marker
+            if (delivery.donor_latitude && delivery.donor_longitude) {
+                const position = new google.maps.LatLng(
+                    parseFloat(delivery.donor_latitude),
+                    parseFloat(delivery.donor_longitude)
+                );
+                console.log('Donor location found:', position.lat(), position.lng());
+                
+                const marker = new google.maps.Marker({
+                    map: map,
+                    position: position,
+                    title: `Pickup: ${delivery.name}`,
+                    icon: {
+                        url: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png',
+                        scaledSize: new google.maps.Size(32, 32)
+                    }
+                });
+                
+                const infoWindow = new google.maps.InfoWindow({
+                    content: `
+                        <div class="p-2">
+                            <h3 class="font-bold">Pickup: ${delivery.name}</h3>
+                            <p>Quantity: ${delivery.quantity}</p>
+                            <p>Address: ${delivery.donor_location}</p>
+                            <p>Status: ${delivery.status}</p>
+                        </div>
+                    `
+                });
+                
+                marker.addListener('click', () => {
+                    infoWindow.open(map, marker);
+                });
+                
+                markers.push(marker);
+                bounds.extend(position);
+            }
+            
+            // Add recipient location marker
+            if (delivery.recipient_latitude && delivery.recipient_longitude) {
+                const position = new google.maps.LatLng(
+                    parseFloat(delivery.recipient_latitude),
+                    parseFloat(delivery.recipient_longitude)
+                );
+                console.log('Recipient location found:', position.lat(), position.lng());
+                
+                const marker = new google.maps.Marker({
+                    map: map,
+                    position: position,
+                    title: `Delivery: ${delivery.name}`,
+                    icon: {
+                        url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
+                        scaledSize: new google.maps.Size(32, 32)
+                    }
+                });
+                
+                const infoWindow = new google.maps.InfoWindow({
+                    content: `
+                        <div class="p-2">
+                            <h3 class="font-bold">Delivery: ${delivery.name}</h3>
+                            <p>Recipient: ${delivery.recipient_name}</p>
+                            <p>Address: ${delivery.recipient_location}</p>
+                            <p>Status: ${delivery.status}</p>
+                        </div>
+                    `
+                });
+                
+                marker.addListener('click', () => {
+                    infoWindow.open(map, marker);
+                });
+                
+                markers.push(marker);
+                bounds.extend(position);
+            }
+        }
+        
+        if (markers.length > 0) {
+            map.fitBounds(bounds);
+            // Add some padding to the bounds
+            google.maps.event.addListenerOnce(map, 'bounds_changed', () => {
+                map.setZoom(Math.min(map.getZoom(), 15));
+            });
+        } else {
+            // If no markers, center on default location (India)
+            map.setCenter({ lat: 20.5937, lng: 78.9629 });
+            map.setZoom(5);
+            showError('No valid delivery locations found');
+        }
+    } catch (error) {
+        console.error('Error in loadDeliveryLocations:', error);
+        showError('Error loading delivery locations: ' + error.message);
+    }
+}
+
+async function optimizeRoutes() {
+    try {
+        toggleLoading(true);
+        
+        // Get current delivery partner's location as depot
+        const currentLocation = await getCurrentLocation();
+        if (!currentLocation) {
+            throw new Error('Could not determine current location');
+        }
+
+        // Get all active deliveries
+        const activeDeliveries = JSON.parse('{{ active_deliveries|tojson|safe }}');
+        if (activeDeliveries.length === 0) {
+            throw new Error('No active deliveries to optimize');
+        }
+
+        // Clear existing markers and directions
+        clearMap();
+
+        // Create array of all locations (depot, donors, recipients)
+        const locations = [
+            {
+                lat: currentLocation.lat,
+                lng: currentLocation.lng,
+                type: 'depot',
+                name: 'Current Location'
+            }
+        ];
+
+        // Add donor and recipient locations
+        for (const delivery of activeDeliveries) {
+            if (delivery.donor_latitude && delivery.donor_longitude) {
+                locations.push({
+                    lat: parseFloat(delivery.donor_latitude),
+                    lng: parseFloat(delivery.donor_longitude),
+                    type: 'pickup',
+                    name: `Pickup: ${delivery.name}`,
+                    delivery_id: delivery.id,
+                    address: delivery.donor_location
+                });
+            }
+            if (delivery.recipient_latitude && delivery.recipient_longitude) {
+                locations.push({
+                    lat: parseFloat(delivery.recipient_latitude),
+                    lng: parseFloat(delivery.recipient_longitude),
+                    type: 'delivery',
+                    name: `Delivery: ${delivery.name}`,
+                    delivery_id: delivery.id,
+                    address: delivery.recipient_location
+                });
+            }
+        }
+
+        // Apply Clarke-Wright algorithm
+        const routes = clarkeWrightAlgorithm(locations);
+        console.log('Optimized Routes:', routes);
+
+        // Display the routes
+        displaySimpleRoutes(routes, locations[0]);
+
+    } catch (error) {
+        console.error('Route optimization error:', error);
+        showError('Failed to optimize routes: ' + error.message);
+    } finally {
+        toggleLoading(false);
+    }
+}
+
+function clarkeWrightAlgorithm(locations) {
+    const depot = locations[0];
+    const deliveryPoints = locations.slice(1);
+    const routes = [];
+    const savings = [];
+
+    // Calculate savings for all pairs of delivery points
+    for (let i = 0; i < deliveryPoints.length; i++) {
+        for (let j = i + 1; j < deliveryPoints.length; j++) {
+            // Only consider valid pickup-delivery pairs
+            if (deliveryPoints[i].delivery_id === deliveryPoints[j].delivery_id) {
+                const saving = 
+                    calculateDistance(depot.lat, depot.lng, deliveryPoints[i].lat, deliveryPoints[i].lng) +
+                    calculateDistance(depot.lat, depot.lng, deliveryPoints[j].lat, deliveryPoints[j].lng) -
+                    calculateDistance(deliveryPoints[i].lat, deliveryPoints[i].lng, deliveryPoints[j].lat, deliveryPoints[j].lng);
+
+                savings.push({
+                    i: i,
+                    j: j,
+                    saving: saving,
+                    delivery_id: deliveryPoints[i].delivery_id
+                });
+            }
+        }
+    }
+
+    // Sort savings in descending order
+    savings.sort((a, b) => b.saving - a.saving);
+
+    // Build routes based on savings
+    const used = new Set();
+    for (const save of savings) {
+        if (!used.has(save.i) && !used.has(save.j)) {
+            // Ensure pickup comes before delivery
+            const point1 = deliveryPoints[save.i];
+            const point2 = deliveryPoints[save.j];
+            const route = [
+                point1.type === 'pickup' ? point1 : point2,
+                point1.type === 'pickup' ? point2 : point1
+            ];
+            routes.push(route);
+            used.add(save.i);
+            used.add(save.j);
+        }
+    }
+
+    // Add any remaining points as single-point routes
+    for (let i = 0; i < deliveryPoints.length; i++) {
+        if (!used.has(i)) {
+            routes.push([deliveryPoints[i]]);
+        }
+    }
+
+    return routes;
+}
+
+function displaySimpleRoutes(routes, depot) {
+    const bounds = new google.maps.LatLngBounds();
+    let totalDistance = 0;
+
+    // Clear previous route details
+    document.getElementById('routeDetails').innerHTML = '';
+
+    // Add depot marker
+    const depotMarker = new google.maps.Marker({
+        position: { lat: depot.lat, lng: depot.lng },
+        map: map,
+        title: 'Depot',
+        icon: {
+            url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png',
+            scaledSize: new google.maps.Size(32, 32)
+        }
+    });
+    bounds.extend(depotMarker.getPosition());
+    markers.push(depotMarker);
+
+    routes.forEach((route, routeIndex) => {
+        const routeColor = routeColors[routeIndex % routeColors.length];
+        let routeDistance = 0;
+
+        // Draw route including depot
+        const routePoints = [
+            depot,
+            ...route,
+            depot
+        ];
+
+        // Create polyline for the route
+        const routePath = new google.maps.Polyline({
+            path: routePoints.map(point => ({ lat: point.lat, lng: point.lng })),
+            geodesic: true,
+            strokeColor: routeColor,
+            strokeOpacity: 1.0,
+            strokeWeight: 3,
+            map: map
+        });
+
+        // Add markers for each point in the route
+        route.forEach((point, pointIndex) => {
+            const marker = new google.maps.Marker({
+                position: { lat: point.lat, lng: point.lng },
+                map: map,
+                title: point.name,
+                icon: {
+                    url: `http://maps.google.com/mapfiles/ms/icons/${point.type === 'pickup' ? 'green' : 'red'}-dot.png`,
+                    scaledSize: new google.maps.Size(32, 32)
+                }
+            });
+
+            bounds.extend(marker.getPosition());
+            markers.push(marker);
+
+            // Add info window
+            const infoWindow = new google.maps.InfoWindow({
+                content: `
+                    <div class="p-2">
+                        <h3 class="font-bold">${point.name}</h3>
+                        <p>Stop ${pointIndex + 1}</p>
+                        ${point.address ? `<p>Address: ${point.address}</p>` : ''}
+                    </div>
+                `
+            });
+
+            marker.addListener('click', () => {
+                infoWindow.open(map, marker);
+            });
+        });
+
+        // Calculate route distance
+        for (let i = 0; i < routePoints.length - 1; i++) {
+            routeDistance += calculateDistance(
+                routePoints[i].lat, routePoints[i].lng,
+                routePoints[i + 1].lat, routePoints[i + 1].lng
+            );
+        }
+
+        totalDistance += routeDistance;
+
+        // Update route details in sidebar
+        const routeDetailsDiv = document.getElementById('routeDetails');
+        const routeDiv = document.createElement('div');
+        routeDiv.className = 'p-4 border-b border-gray-200';
+        routeDiv.innerHTML = `
+            <div class="flex items-center space-x-2">
+                <div class="w-4 h-4 rounded-full" style="background-color: ${routeColor}"></div>
+                <h3 class="font-bold">Route ${routeIndex + 1}</h3>
+            </div>
+            <p class="text-sm text-gray-600">Distance: ${routeDistance.toFixed(1)} km</p>
+            <div class="mt-2 space-y-1">
+                <div class="flex items-center space-x-2">
+                    <span class="text-blue-500">●</span>
+                    <span class="text-sm">Start: Depot</span>
+                </div>
+                ${route.map(point => `
+                    <div class="flex items-center space-x-2">
+                        <span class="text-${point.type === 'pickup' ? 'green' : 'red'}-500">●</span>
+                        <span class="text-sm">${point.name}</span>
+                    </div>
+                `).join('')}
+                <div class="flex items-center space-x-2">
+                    <span class="text-blue-500">●</span>
+                    <span class="text-sm">End: Depot</span>
+                </div>
+            </div>
+        `;
+        routeDetailsDiv.appendChild(routeDiv);
+    });
+
+    // Update total distance
+    document.getElementById('totalDistance').textContent = totalDistance.toFixed(1);
+    // Estimate time (assuming average speed of 30 km/h)
+    document.getElementById('estimatedTime').textContent = Math.round((totalDistance / 30) * 60);
+
+    // Fit map to show all routes
+    map.fitBounds(bounds);
+}
+
+// Helper function to get current location
+function getCurrentLocation() {
+    return new Promise((resolve, reject) => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                position => {
+                    resolve({
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    });
+                },
+                error => {
+                    console.warn('Geolocation error:', error);
+                    // Fallback to a default location (e.g., city center)
+                    resolve({ lat: 20.5937, lng: 78.9629 });
+                }
+            );
+        } else {
+            console.warn('Geolocation not supported');
+            // Fallback to a default location
+            resolve({ lat: 20.5937, lng: 78.9629 });
+        }
+    });
+}
+
+// Helper function to calculate distance between two points using Haversine formula
+function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * 
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
+
+function toRad(degrees) {
+    return degrees * (Math.PI / 180);
+}
+
+function clearMap() {
+    markers.forEach(marker => marker.setMap(null));
+    markers = [];
+    if (directionsRenderer) {
+        directionsRenderer.setDirections({ routes: [] });
+    }
+}
+
+function geocodeAddress(address) {
+    return new Promise((resolve, reject) => {
+        if (!address || address === 'Not specified') {
+            reject(new Error('Invalid address'));
+            return;
+        }
+
+        const geocoder = new google.maps.Geocoder();
+        
+        geocoder.geocode({ 
+            address: address,
+            region: 'in' // Bias towards India
+        }, (results, status) => {
+            if (status === 'OK' && results && results.length > 0) {
+                resolve(results[0]);
+            } else {
+                // Try with coordinates if address fails
+                const coords = extractCoordinates(address);
+                if (coords) {
+                    resolve({
+                        geometry: {
+                            location: new google.maps.LatLng(coords.lat, coords.lng)
+                        },
+                        formatted_address: address
+                    });
+                } else {
+                    reject(new Error(`Could not geocode address: ${address} (${status})`));
+                }
+            }
+        });
+    });
+}
+
+// Helper function to extract coordinates from string
+function extractCoordinates(str) {
+    // Try to match coordinates in format "lat,lng" or "(lat, lng)"
+    const matches = str.match(/[-+]?([0-9]*\.[0-9]+|[0-9]+),\s*[-+]?([0-9]*\.[0-9]+|[0-9]+)/);
+    if (matches) {
+        const lat = parseFloat(matches[1]);
+        const lng = parseFloat(matches[2]);
+        if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+            return { lat, lng };
+        }
+    }
+    return null;
+}
+
+function showError(message) {
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'fixed top-4 right-4 bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded shadow-md z-50';
+    errorDiv.innerHTML = message;
+    document.body.appendChild(errorDiv);
+    setTimeout(() => errorDiv.remove(), 5000);
+}
+
+function checkGoogleMapsLoaded() {
+    if (!window.google || !window.google.maps) {
+        console.error('Google Maps not loaded');
+        showError('Google Maps failed to load. Please refresh the page.');
+        return false;
+    }
+    return true;
+}
+
+function toggleLoading(show) {
+    const loadingDiv = document.getElementById('loadingIndicator');
+    if (show) {
+        if (!loadingDiv) {
+            const div = document.createElement('div');
+            div.id = 'loadingIndicator';
+            div.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            div.innerHTML = `
+                <div class="bg-white rounded-lg p-6 flex items-center space-x-4">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                    <p class="text-gray-800">Optimizing routes...</p>
+                </div>
+            `;
+            document.body.appendChild(div);
+        }
+    } else if (loadingDiv) {
+        loadingDiv.remove();
+    }
+}
+
+function startDelivery(deliveryId) {
+    fetch('/delivery/start', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ delivery_id: deliveryId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            loadDeliveryLocations();
+            location.reload();
+        } else {
+            showError('Failed to start delivery: ' + data.message);
+        }
+    })
+    .catch(error => {
+        showError('Error starting delivery: ' + error.message);
+    });
+}
+
+function completeDelivery(deliveryId) {
+    fetch('/delivery/complete', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ delivery_id: deliveryId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            showError('Failed to complete delivery: ' + data.message);
+        }
+    })
+    .catch(error => {
+        showError('Error completing delivery: ' + error.message);
+    });
+}
+
+function acceptDelivery(deliveryId) {
+    fetch('/delivery/accept', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ delivery_id: deliveryId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            showError('Failed to accept delivery: ' + data.message);
+        }
+    })
+    .catch(error => {
+        showError('Error accepting delivery: ' + error.message);
+    });
+}
+</script>
+
+{% endblock %} 
