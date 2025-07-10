@@ -1,0 +1,506 @@
+{% extends "base.html" %}
+
+{% block title %}Donor Dashboard{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-100">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-lg">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex justify-between items-center">
+                <div class="text-2xl font-bold text-gray-800">Food Buddy</div>
+                <div class="flex items-center space-x-4">
+                    <button onclick="openDonationModal()" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                        <span class="flex items-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                            </svg>
+                            Add Donation
+                        </span>
+                    </button>
+                    <span class="text-gray-600">Welcome, {{ current_user.name }}</span>
+                    <a href="{{ url_for('logout') }}" class="text-red-600 hover:text-red-800">Logout</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container mx-auto px-6 py-8">
+        <!-- Stats Section -->
+        <div class="bg-white rounded-lg shadow p-6 mb-8">
+            <h2 class="text-2xl font-bold mb-4">Welcome, {{ current_user.name }}</h2>
+            <div class="grid grid-cols-4 gap-4">
+                <div class="bg-blue-100 p-4 rounded-lg">
+                    <h3 class="font-semibold">Total Donations</h3>
+                    <p class="text-2xl">{{ donations_count }}</p>
+                </div>
+                <div class="bg-green-100 p-4 rounded-lg">
+                    <h3 class="font-semibold">Points</h3>
+                    <p class="text-2xl">{{ current_user.points }}</p>
+                </div>
+                <div class="bg-yellow-100 p-4 rounded-lg">
+                    <h3 class="font-semibold">Level</h3>
+                    <p class="text-2xl">{{ current_user.level }}</p>
+                </div>
+                <div class="bg-purple-100 p-4 rounded-lg">
+                    <h3 class="font-semibold">Impact Score</h3>
+                    <p class="text-2xl">{{ impact_score }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Donations -->
+        <div class="bg-white rounded-lg shadow p-6 mb-8">
+            <h2 class="text-2xl font-bold mb-4">Your Active Donations</h2>
+            {% if active_donations %}
+                <div class="overflow-x-auto">
+                    <table class="min-w-full table-auto">
+                        <thead>
+                            <tr class="bg-gray-100">
+                                <th class="px-4 py-2 text-left">Name</th>
+                                <th class="px-4 py-2 text-left">Quantity</th>
+                                <th class="px-4 py-2 text-left">Type</th>
+                                <th class="px-4 py-2 text-left">Expiry</th>
+                                <th class="px-4 py-2 text-left">Status</th>
+                                <th class="px-4 py-2 text-left">Recipient</th>
+                                <th class="px-4 py-2 text-left">Delivery Partner</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for donation in active_donations %}
+                            <tr class="border-b">
+                                <td class="px-4 py-2">{{ donation.name }}</td>
+                                <td class="px-4 py-2">{{ donation.quantity }}</td>
+                                <td class="px-4 py-2">{{ donation.food_type }}</td>
+                                <td class="px-4 py-2">{{ donation.expiry }}</td>
+                                <td class="px-4 py-2">
+                                    <span class="px-2 py-1 rounded text-sm
+                                        {% if donation.status == 'available' %}
+                                            bg-blue-100 text-blue-800
+                                        {% elif donation.status == 'assigned' %}
+                                            bg-yellow-100 text-yellow-800
+                                        {% elif donation.status == 'in_delivery' %}
+                                            bg-green-100 text-green-800
+                                        {% endif %}">
+                                        {{ donation.status }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-2">{{ donation.recipient_name }}</td>
+                                <td class="px-4 py-2">{{ donation.delivery_partner_name }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-gray-600">No active donations at the moment.</p>
+            {% endif %}
+        </div>
+
+        <!-- Completed Donations -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-2xl font-bold mb-4">Recently Completed Donations</h2>
+            {% if completed_donations %}
+                <div class="overflow-x-auto">
+                    <table class="min-w-full table-auto">
+                        <thead>
+                            <tr class="bg-gray-100">
+                                <th class="px-4 py-2 text-left">Name</th>
+                                <th class="px-4 py-2 text-left">Quantity</th>
+                                <th class="px-4 py-2 text-left">Type</th>
+                                <th class="px-4 py-2 text-left">Recipient</th>
+                                <th class="px-4 py-2 text-left">Delivery Partner</th>
+                                <th class="px-4 py-2 text-left">Completed On</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for donation in completed_donations %}
+                            <tr class="border-b">
+                                <td class="px-4 py-2">{{ donation.name }}</td>
+                                <td class="px-4 py-2">{{ donation.quantity }}</td>
+                                <td class="px-4 py-2">{{ donation.food_type }}</td>
+                                <td class="px-4 py-2">{{ donation.recipient_name }}</td>
+                                <td class="px-4 py-2">{{ donation.delivery_partner_name }}</td>
+                                <td class="px-4 py-2">{{ donation.created_at }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-gray-600">No completed donations yet.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Donation Modal -->
+    <div id="donationModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50">
+        <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-2xl font-bold text-gray-900">Add New Donation</h3>
+                <button onclick="closeDonationModal()" class="text-gray-400 hover:text-gray-500">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <form action="{{ url_for('add_donation') }}" method="POST" enctype="multipart/form-data" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="name">
+                            Food Name
+                        </label>
+                        <input type="text" id="name" name="name" required
+                            class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="quantity">
+                            Quantity
+                        </label>
+                        <input type="number" id="quantity" name="quantity" required
+                            class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600">
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="food_type">
+                        Food Type
+                    </label>
+                    <select id="food_type" name="food_type" required
+                        class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600">
+                        <option value="vegetables">Vegetables</option>
+                        <option value="fruits">Fruits</option>
+                        <option value="grains">Grains</option>
+                        <option value="protein">Protein</option>
+                        <option value="dairy">Dairy</option>
+                        <option value="prepared">Prepared Food</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="expiry">
+                        Expiry Date
+                    </label>
+                    <input type="date" id="expiry" name="expiry" required
+                        class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600">
+                </div>
+
+                <!-- Location Selection -->
+                <div>
+                    <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">
+                        Select Location
+                    </label>
+                    <div class="flex space-x-2 mb-4">
+                        <input type="text" id="location_search" placeholder="Search for a location"
+                            class="flex-1 shadow appearance-none border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600">
+                        <button type="button" id="pin_location" onclick="togglePinMode()"
+                            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                            Pin Location
+                        </button>
+                    </div>
+                    <div id="map_error" class="hidden text-red-500 text-sm mb-2"></div>
+                    <div id="pin_mode_indicator" class="hidden bg-yellow-100 text-yellow-800 px-4 py-2 rounded-lg mb-2">
+                        Click anywhere on the map to pin your location
+                    </div>
+                    <div id="location_map" style="height: 400px; width: 100%;" class="rounded-lg mb-4 relative border-2 border-gray-300">
+                        <div id="map_loading" class="absolute inset-0 bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                        </div>
+                    </div>
+                    <div id="selected_location" class="hidden bg-green-100 text-green-800 px-4 py-2 rounded-lg mb-4">
+                        Selected location: <span id="location_display">None</span>
+                    </div>
+                    <input type="hidden" id="location" name="location" required>
+                    <input type="hidden" id="lat" name="lat" required>
+                    <input type="hidden" id="lng" name="lng" required>
+                </div>
+
+                <div>
+                    <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2" for="image">
+                        Food Image
+                    </label>
+                    <input type="file" id="image" name="image" accept="image/*"
+                        class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600">
+                </div>
+
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button type="button" onclick="closeDonationModal()" class="px-4 py-2 border text-gray-700 rounded-md hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                        class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                        Add Donation
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Map Initialization Script -->
+<script src="https://maps.googleapis.com/maps/api/js?key={{ config.GOOGLE_MAPS_API_KEY }}&libraries=places,geometry"></script>
+<script>
+let donationMap = null;
+let donationMarker = null;
+let searchBox = null;
+let isPinMode = false;
+
+function togglePinMode() {
+    isPinMode = !isPinMode;
+    const indicator = document.getElementById('pin_mode_indicator');
+    const pinButton = document.getElementById('pin_location');
+    
+    if (isPinMode) {
+        indicator.classList.remove('hidden');
+        pinButton.classList.add('bg-green-500', 'hover:bg-green-700');
+        pinButton.classList.remove('bg-blue-500', 'hover:bg-blue-700');
+        donationMap.setOptions({ draggableCursor: 'crosshair' });
+    } else {
+        indicator.classList.add('hidden');
+        pinButton.classList.remove('bg-green-500', 'hover:bg-green-700');
+        pinButton.classList.add('bg-blue-500', 'hover:bg-blue-700');
+        donationMap.setOptions({ draggableCursor: null });
+    }
+}
+
+function showMapError(message) {
+    const errorDiv = document.getElementById('map_error');
+    errorDiv.textContent = message;
+    errorDiv.classList.remove('hidden');
+}
+
+function hideMapError() {
+    document.getElementById('map_error').classList.add('hidden');
+}
+
+function showMapLoading(show) {
+    const loadingDiv = document.getElementById('map_loading');
+    if (show) {
+        loadingDiv.classList.remove('hidden');
+    } else {
+        loadingDiv.classList.add('hidden');
+    }
+}
+
+function updateLocationDisplay(address) {
+    const displayDiv = document.getElementById('selected_location');
+    const displaySpan = document.getElementById('location_display');
+    displaySpan.textContent = address;
+    displayDiv.classList.remove('hidden');
+}
+
+function initDonationMap() {
+    const mapContainer = document.getElementById('location_map');
+    if (!mapContainer) return;
+
+    try {
+        showMapLoading(true);
+        hideMapError();
+
+        // Initialize map
+        donationMap = new google.maps.Map(mapContainer, {
+            zoom: 12,
+            center: { lat: 20.5937, lng: 78.9629 }, // Default center (India)
+            mapTypeControl: true,
+            fullscreenControl: true,
+            streetViewControl: true,
+            zoomControl: true
+        });
+
+        // Initialize search box
+        const input = document.getElementById('location_search');
+        searchBox = new google.maps.places.SearchBox(input);
+
+        // Bias SearchBox results towards current map's viewport
+        donationMap.addListener('bounds_changed', () => {
+            searchBox.setBounds(donationMap.getBounds());
+        });
+
+        // Handle place selection
+        searchBox.addListener('places_changed', () => {
+            const places = searchBox.getPlaces();
+            if (places.length === 0) return;
+
+            const place = places[0];
+            if (!place.geometry || !place.geometry.location) {
+                showMapError('Selected place has no location data');
+                return;
+            }
+
+            placeMarker(place.geometry.location, place.formatted_address);
+        });
+
+        // Handle map clicks
+        donationMap.addListener('click', (event) => {
+            if (isPinMode) {
+                placeMarker(event.latLng);
+            }
+        });
+
+        // Try to get user's location
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const pos = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+                    donationMap.setCenter(pos);
+                    placeMarker(pos); // Automatically place marker at user's location
+                },
+                () => {
+                    showMapError('Could not get your location. Please select manually.');
+                }
+            );
+        }
+
+        showMapLoading(false);
+
+    } catch (error) {
+        console.error('Map initialization error:', error);
+        showMapError('Failed to load the map. Please try again.');
+        showMapLoading(false);
+    }
+}
+
+function placeMarker(location, address = null) {
+    try {
+        const lat = typeof location.lat === 'function' ? location.lat() : location.lat;
+        const lng = typeof location.lng === 'function' ? location.lng() : location.lng;
+
+        // Update or create marker
+        if (donationMarker) {
+            donationMarker.setPosition({ lat, lng });
+        } else {
+            donationMarker = new google.maps.Marker({
+                map: donationMap,
+                position: { lat, lng },
+                draggable: true,
+                animation: google.maps.Animation.DROP
+            });
+
+            // Handle marker drag
+            donationMarker.addListener('dragend', () => {
+                const pos = donationMarker.getPosition();
+                placeMarker(pos);
+            });
+        }
+
+        // Center map on marker
+        donationMap.panTo({ lat, lng });
+        donationMap.setZoom(16); // Zoom in for better view
+
+        // Update form fields with coordinates
+        document.getElementById('lat').value = lat;
+        document.getElementById('lng').value = lng;
+
+        // If address is provided directly (from search), use it
+        if (address) {
+            document.getElementById('location').value = address;
+            document.getElementById('location_search').value = address;
+            updateLocationDisplay(address);
+            hideMapError();
+            return;
+        }
+
+        // Otherwise, get address from coordinates
+        const geocoder = new google.maps.Geocoder();
+        geocoder.geocode({ 
+            location: { lat, lng },
+            language: 'en' // Ensure English results
+        }, (results, status) => {
+            if (status === 'OK' && results && results[0]) {
+                const formattedAddress = results[0].formatted_address;
+                
+                // Update all address-related fields
+                document.getElementById('location').value = formattedAddress;
+                document.getElementById('location_search').value = formattedAddress;
+                updateLocationDisplay(formattedAddress);
+                hideMapError();
+
+                // Log success for debugging
+                console.log('Address found:', formattedAddress);
+            } else {
+                // Fallback to coordinate string if geocoding fails
+                console.error('Geocoding failed:', status);
+                const fallbackAddress = `Location (${lat.toFixed(6)}, ${lng.toFixed(6)})`;
+                
+                document.getElementById('location').value = fallbackAddress;
+                document.getElementById('location_search').value = fallbackAddress;
+                updateLocationDisplay(fallbackAddress);
+                showMapError('Using coordinates - address lookup failed');
+            }
+        });
+
+        // Exit pin mode after placing marker
+        if (isPinMode) {
+            togglePinMode();
+        }
+
+    } catch (error) {
+        console.error('Error in placeMarker:', error);
+        showMapError('Error placing marker: ' + error.message);
+    }
+}
+
+function openDonationModal() {
+    document.getElementById('donationModal').classList.remove('hidden');
+    
+    // Set minimum date to today for expiry date input
+    const today = new Date().toISOString().split('T')[0];
+    document.querySelector('input[name="expiry"]').min = today;
+    
+    // Initialize map after modal is shown
+    setTimeout(initDonationMap, 100);
+}
+
+function closeDonationModal() {
+    document.getElementById('donationModal').classList.add('hidden');
+    
+    // Clean up map instance
+    if (donationMarker) {
+        donationMarker.setMap(null);
+        donationMarker = null;
+    }
+    if (donationMap) {
+        donationMap = null;
+    }
+    isPinMode = false;
+    
+    // Clear form fields
+    document.getElementById('location_search').value = '';
+    document.getElementById('location').value = '';
+    document.getElementById('lat').value = '';
+    document.getElementById('lng').value = '';
+    document.getElementById('selected_location').classList.add('hidden');
+    document.getElementById('pin_mode_indicator').classList.add('hidden');
+    hideMapError();
+}
+
+// Form validation
+document.querySelector('form').addEventListener('submit', function(e) {
+    const lat = document.getElementById('lat').value;
+    const lng = document.getElementById('lng').value;
+    const location = document.getElementById('location').value;
+    
+    if (!lat || !lng || !location) {
+        e.preventDefault();
+        showMapError('Please select a location on the map');
+        return false;
+    }
+    return true;
+});
+
+// Close modal when clicking outside
+document.getElementById('donationModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeDonationModal();
+    }
+});
+</script>
+{% endblock %} 
